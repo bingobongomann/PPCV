@@ -3,6 +3,7 @@ import torch.utils.data as D
 from torchvision.models import resnet50
 from torchvision import transforms as T
 from experiments.dataset import Focus
+from experiments.evaluate_model import check_label
 from tqdm import tqdm
 import sys
 
@@ -63,7 +64,7 @@ locations = [
 ]
 
 uncommon = {
-    #0: {"time": {1}, "weather": {1, 3, 4}, "locations": {2, 3, 6, 7}},
+    0: {"time": {1}, "weather": {}, "locations": {}},
     1: {"time": {1}, "weather": {1, 3, 4}, "locations": {2, 3, 6, 7}},
     2: {"time": {1}, "weather": {1, 3, 4}, "locations": {0, 2, 3, 4, 6, 7}},
     3: {"time": {1}, "weather": {1, 3, 4}, "locations": {0, 1, 2, 3, 4, 5, 6}},
@@ -83,18 +84,21 @@ field_lists = {
     "locations": locations,
 }
 
-correct = 0
+correct_top1 = 0
+correct_top5 = 0
 total = 0
 
 # Open a file for writing
-with open('output_log_uncommon_2.txt', 'w') as file:
+with open('output_log_uncommon_100.txt', 'w') as file:
     # Redirect standard output to the file
     sys.stdout = file
 
     dataloaders = {}  # Dictionary to store DataLoaders for each category
-    correct_dataloader = {}
+    correct_top1_dataloader = {}
+    correct_top5_dataloader = {}
     total_dataloader = {}
-    accuracies_dataloader = {}
+    accuracies_top1_dataloader = {}
+    accuracies_top5_dataloader = {}
 
     for category, settings in tqdm(uncommon.items()):
         category_name = categories[category]
@@ -113,7 +117,8 @@ with open('output_log_uncommon_2.txt', 'w') as file:
                 for value in settings[specified_field]:
                     #print(value)
                     dataloader_key = f"{category_name}_{specified_field}_{field_list[value]}"
-                    correct_dataloader[dataloader_key] = 0
+                    correct_top1_dataloader[dataloader_key] = 0
+                    correct_top5_dataloader[dataloader_key] = 0
                     total_dataloader[dataloader_key] = 0
 
                     custom_focus = Focus(
@@ -149,35 +154,52 @@ with open('output_log_uncommon_2.txt', 'w') as file:
                             outputs = net(images)
 
                             # Get the predicted categories
-                            _, predicted = th.max(outputs, 1)
+                            _, predicted = th.topk(outputs, k=5)
 
                             # Update total count
                             total += images.shape[0]
                             total_dataloader[dataloader_key] += images.shape[0]
+                            print("images.shape[0]: ", images.shape[0])
 
                             # Update correct count
-                            correct += (predicted == ground_truth_categories).sum().item()
-                            correct_dataloader[dataloader_key] += (predicted == ground_truth_categories).sum().item()
+                            print("predicted: ", predicted[0])
+                            correct_top1_batch, correct_top5_batch = check_label(predicted[0], ground_truth_categories)
+
+                            correct_top1_dataloader[dataloader_key] += correct_top1_batch
+                            correct_top5_dataloader[dataloader_key] += correct_top5_batch
+
+
+                            # Accumulate correct counts
+                            correct_top1 += correct_top1_batch
+                            correct_top5 += correct_top5_batch
 
                             # Print information for each batch
-                            print(f"Predicted Categories: {predicted}")
-                            print(f"Accuracy for Batch: {100 * (predicted == ground_truth_categories).sum().item() / images.shape[0]:.2f}%")
+                            print(f"Predicted Categorie: {predicted[0].tolist()}")
+                            print(f"Top-1 Accuracy for Batch: {100 * correct_top1_batch:.2f}%")
+                            print(f"Top-5 Accuracy for Batch: {100 * correct_top5_batch:.2f}%")
 
-                    accuracies_dataloader[dataloader_key] = ""
+
+                    accuracies_top1_dataloader[dataloader_key] = ""
+                    accuracies_top5_dataloader[dataloader_key] = ""
 
                     if total_dataloader[dataloader_key] != 0:
-                        accuracy_percentage = 100 * correct_dataloader[dataloader_key] / total_dataloader[dataloader_key]
-                        accuracies_dataloader[dataloader_key] = f"{accuracy_percentage:.2f}%"
+                        accuracy_top1_percentage = 100 * correct_top1_dataloader[dataloader_key] / total_dataloader[dataloader_key]
+                        accuracies_top1_dataloader[dataloader_key] = f"{accuracy_top1_percentage:.2f}%"
+                        accuracy_top5_percentage = 100 * correct_top5_dataloader[dataloader_key] / total_dataloader[dataloader_key]
+                        accuracies_top5_dataloader[dataloader_key] = f"{accuracy_top5_percentage:.2f}%"
                     else:
-                        accuracies_dataloader[dataloader_key] = "N/A (total is zero)"
+                        accuracies_top1_dataloader[dataloader_key] = "N/A (total is zero)"
 
 
     print(f"total_dataloader: {total_dataloader}")
-    print(f"correct_dataloader: {correct_dataloader}")
-    print(f"accuracies_dataloader: {accuracies_dataloader}")
+    print(f"correct_top1_dataloader: {correct_top1_dataloader}")
+    print(f"correct_top5_dataloader: {correct_top5_dataloader}")
+    print(f"accuracies_top1_dataloader: {accuracies_top1_dataloader}")
+    print(f"accuracies_top5_dataloader: {accuracies_top5_dataloader}")
     if total != 0:
         # Print overall accuracy
-        print(f"\nOverall Accuracy: {100 * correct / total:.2f}%")
+        print(f"\nOverall Top-1 Accuracy: {100 * correct_top1 / total:.2f}%")
+        print(f"Overall Top-5 Accuracy: {100 * correct_top5 / total:.2f}%")
     else:
         print("\nNo batches processed. Overall accuracy cannot be calculated.")
 
@@ -187,6 +209,7 @@ with open('output_log_uncommon_2.txt', 'w') as file:
 # Check if total is not zero before calculating overall accuracy
 if total != 0:
     # Print overall accuracy
-    print(f"\nOverall Accuracy: {100 * correct / total:.2f}%")
+    print(f"\nOverall Top-1 Accuracy: {100 * correct_top1 / total:.2f}%")
+    print(f"Overall Top-5 Accuracy: {100 * correct_top5 / total:.2f}%")
 else:
     print("\nNo batches processed. Overall accuracy cannot be calculated.")
