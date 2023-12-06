@@ -12,9 +12,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Script for evaluating a model on a dataset with specified settings.')
     parser.add_argument('--checkpoint_path', type=str, required=True, help='Path to the checkpoint file.')
     parser.add_argument('--settings', type=str, choices=['common', 'uncommon'], default='uncommon', help='Specify whether to use common or uncommon settings.')
+    parser.add_argument('--device', type=str, default='cuda:0', help='Specify the device (e.g., "cuda:0" or "cpu").')
     return parser.parse_args()
 
 args = parse_args()
+device = th.device(args.device)
 
 # Load checkpoint
 ckpt = th.load(args.checkpoint_path, "cpu")
@@ -26,6 +28,7 @@ num_classes = 100 if 'imagenet_100_sd' in args.checkpoint_path else 1000
 net = resnet50()
 net.fc = th.nn.Linear(2048, 1000, bias=False)  # change 1000 to 100 for "imagenet_100_sd.pth"
 net.load_state_dict(ckpt, strict=True)
+net.to(args.device)
 net.eval()
 
 # Define transformations
@@ -137,8 +140,9 @@ with open(output_filename, 'w') as file:
                     with th.no_grad():
                         for batch_idx, databatch in enumerate(tqdm(dataloaders[dataloader_key], leave=False)):
                             images, ground_truth_categories, ground_truth_times, ground_truth_weathers, ground_truth_locations = (
-                                databatch[0].cpu(), databatch[1].cpu(), databatch[2].cpu(), databatch[3].cpu(), databatch[4].cpu()
-                            )
+                                databatch[0].to(args.device), databatch[1].to(args.device), databatch[2].to(args.device),
+                                databatch[3].to(args.device), databatch[4].to(args.device)
+                                )
 
                             # Print information for each iteration
                             print(f"\nCategory: {category_name}")
@@ -218,4 +222,3 @@ else:
 # Print settings information
 print(f"Checkpoint Path: {args.checkpoint_path}")
 print(f"Settings: {args.settings}")
-
