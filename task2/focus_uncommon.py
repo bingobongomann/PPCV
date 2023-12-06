@@ -7,7 +7,7 @@ from experiments.evaluate_model import check_label
 from tqdm import tqdm
 import sys
 
-ckpt = th.load("../Models/Synthetic/imagenet_1k_sd.pth", "cpu")
+ckpt = th.load("Pretrained_models/imagenet_1k_sd.pth", "cpu")
 net = resnet50()
 net.fc = th.nn.Linear(2048, 1000, bias=False)  # change 1000 to 100 for "imagenet_100_sd.pth"
 msg = net.load_state_dict(ckpt, strict=True)
@@ -40,6 +40,7 @@ times = [
     "night",
     "none",
 ]
+
 weathers = [
     "cloudy",
     "foggy",
@@ -49,6 +50,7 @@ weathers = [
     "sunny",
     "none",
 ]
+
 locations = [
     "forest",
     "grass",
