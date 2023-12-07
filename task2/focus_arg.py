@@ -41,7 +41,7 @@ def write_results_csv(model_name, settings, top1_dict, top5_dict):
 
 def get_crop_size(model_name):
     size = 224
-    if model_name in ["imagenet_1k", "convnext_base", "convnext_large"]:
+    if model_name in ["resnet50", "convnext_base", "convnext_large"]:
         size = 232
     elif model_name == "convnext_tiny":
         size = 236
@@ -59,7 +59,7 @@ def init_imagenet_sd(num_classes, checkpoint_path):
 
     return net
 
-def init_imagenet():
+def init_resnet():
     return resnet50(ResNet50_Weights.IMAGENET1K_V2)
 
 def init_convnext_tiny():
@@ -79,8 +79,8 @@ def init_model(model_name, num_classes, checkpoint_path, device):
     if model_name.startswith("imagenet"):
         if model_name.endswith("_sd"):
             net = init_imagenet_sd(num_classes, checkpoint_path)
-        else:
-            net = init_imagenet()
+    if model_name.startswith("resnet"):
+            net = init_resnet()
     if model_name.startswith("convnext"):
         if "tiny" in model_name:
             net = init_convnext_tiny()
@@ -99,7 +99,7 @@ def init_model(model_name, num_classes, checkpoint_path, device):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Script for evaluating a model on a dataset with specified settings.')
-    parser.add_argument('--model_name', type=str, required=True, help='Name of the model. Available: imagenet_100_sd, imagenet_1k_sd, imagenet_1k (=resnet50 with imagenet1kv1), convnext_tiny, convnext_small, convnext_base, convnext_large')
+    parser.add_argument('--model_name', type=str, required=True, help='Name of the model. Available: imagenet_100_sd, imagenet_1k_sd, resnet50 (pretrained with imagenet1kv2), convnext_tiny, convnext_small, convnext_base, convnext_large')
     parser.add_argument('--checkpoint_path', type=str, required=False, help='Path to the checkpoint file.')
     parser.add_argument('--settings', type=str, choices=['common', 'uncommon'], default='uncommon', help='Specify whether to use common or uncommon settings.')
     parser.add_argument('--device', type=str, default='cuda:0', help='Specify the device (e.g., "cuda:0" or "cpu").')
@@ -109,11 +109,10 @@ def parse_args():
 args = parse_args()
 device = th.device(args.device)
 
-num_classes = None
+num_classes = 1000
 
 # Determine the size of the Linear layer based on the checkpoint file
-if args.model_name.startswith("imagenet"):
-    num_classes = 100 if 'imagenet_100' in args.model_name else 1000
+num_classes = 100 if 'imagenet_100' in args.model_name else 1000
 
 # Initialize ResNet model
 net = init_model(args.model_name, num_classes, args.checkpoint_path, args.device)
