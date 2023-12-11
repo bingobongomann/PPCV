@@ -4,7 +4,9 @@ import torch.utils.data as D
 from torchvision.models import resnet50, ResNet50_Weights, ConvNeXt_Tiny_Weights, ConvNeXt_Small_Weights, ConvNeXt_Base_Weights, ConvNeXt_Large_Weights, convnext_tiny, convnext_small, convnext_base, convnext_large
 from torchvision import transforms as T
 from experiments.dataset import Focus
-from experiments.evaluate_model import check_label
+from experiments.evaluate_model import check_label, label_to_correct_idxes
+from experiments.imagenet_labels import imagenet_labels
+from experiments.dataset import Focus, split_dataset, DCR
 from tqdm import tqdm
 import sys
 import csv
@@ -144,7 +146,6 @@ uncommon = {
     9: {"time": {1}, "weather": {1, 3, 4}, "locations": {2, 3, 5, 6}},
 }
 
-##actually common
 common = {
     0: {"time": {0, 2}, "weather": {0, 2, 5, 6}, "locations": {0, 1, 4, 5, 8}},
     1: {"time": {0, 2}, "weather": {0, 2, 5, 6}, "locations": {0, 1, 4, 5, 8}},
@@ -233,7 +234,11 @@ with open(output_filename, 'w') as file:
                             # Print information for each iteration
                             print(f"\nCategory: {category_name}")
                             print(f"Dataloader_key: {dataloader_key}")
-                            print(f"Batch Index: {batch_idx + 1}/{len(dataloaders[dataloader_key])}")
+                            try:
+                                image_file = custom_focus.image_files[batch_idx][0][1:]
+                            except AttributeError:
+                                image_file = dataloaders[dataloader_key].dataset.image_files[custom_focus.indices[batch_idx]][0][1:]
+                            print("image_file: ", image_file, " Batch Index:  {batch_idx + 1}/{len(dataloaders[dataloader_key])}")
                             print(f"Images Shape: {images.shape}")
                             print(f"Ground Truth Categories: {categories[ground_truth_categories.item()]}")
                             print(f"Ground Truth Times: {times[ground_truth_times.item()]}")
@@ -262,9 +267,22 @@ with open(output_filename, 'w') as file:
                             # Accumulate correct counts
                             correct_top1 += correct_top1_batch
                             correct_top5 += correct_top5_batch
+                            
+                            # Build Predicted categories string
+                            predicted_labels_names = [imagenet_labels[label] for label in predicted[0].tolist()]
+
+                            output_labels = []
+
+                            for label in predicted[0].tolist():
+                                for category, label_set in label_to_correct_idxes.items():
+                                    if label in label_set:
+                                        output_labels.append(f"{imagenet_labels[label]} ({categories[category]})")
+                                        break
+                                else:
+                                    output_labels.append(imagenet_labels[label])
 
                             # Print information for each batch
-                            print(f"Predicted Categorie: {predicted[0].tolist()}")
+                            print(f"Predicted Categorie: {predicted[0].tolist()}, {output_labels}")
                             print(f"Top-1 Accuracy for Batch: {100 * correct_top1_batch:.2f}%")
                             print(f"Top-5 Accuracy for Batch: {100 * correct_top5_batch:.2f}%")
 
