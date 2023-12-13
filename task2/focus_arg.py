@@ -47,6 +47,8 @@ def get_crop_size(model_name):
         size = 236
     elif model_name == "convnext_small":
         size = 230
+    elif model_name.startswith("dino"):
+        size = 256
 
     return size
 
@@ -74,6 +76,9 @@ def init_convnext_base():
 def init_convnext_large():
     return convnext_large(ConvNeXt_Large_Weights.IMAGENET1K_V1)
 
+def init_dino(model_name):
+    return th.hub.load('facebookresearch/dinov2', model_name)
+
 def init_model(model_name, num_classes, checkpoint_path, device):
 
     if model_name.startswith("imagenet"):
@@ -90,6 +95,8 @@ def init_model(model_name, num_classes, checkpoint_path, device):
             net = init_convnext_base()
         elif "large" in model_name:
             net = init_convnext_large()
+    if model_name.startswith("dino"):
+        net = init_dino(model_name)
         
 
     net.to(device)
@@ -99,7 +106,7 @@ def init_model(model_name, num_classes, checkpoint_path, device):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Script for evaluating a model on a dataset with specified settings.')
-    parser.add_argument('--model_name', type=str, required=True, help='Name of the model. Available: imagenet_100_sd, imagenet_1k_sd, resnet50 (pretrained with imagenet1kv2), convnext_tiny, convnext_small, convnext_base, convnext_large')
+    parser.add_argument('--model_name', type=str, required=True, help='Name of the model. Available: imagenet_100_sd, imagenet_1k_sd, resnet50 (pretrained with imagenet1kv2), convnext_tiny, convnext_small, convnext_base, convnext_large, dinov2* (model_name on th hub)')
     parser.add_argument('--checkpoint_path', type=str, required=False, help='Path to the checkpoint file.')
     parser.add_argument('--settings', type=str, choices=['common', 'uncommon'], default='uncommon', help='Specify whether to use common or uncommon settings.')
     parser.add_argument('--device', type=str, default='cuda:0', help='Specify the device (e.g., "cuda:0" or "cpu").')
