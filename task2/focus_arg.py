@@ -245,8 +245,8 @@ with open(output_filename, 'w') as file:
                                 image_file = custom_focus.image_files[batch_idx][0][1:]
                             except AttributeError:
                                 image_file = dataloaders[dataloader_key].dataset.image_files[custom_focus.indices[batch_idx]][0][1:]
-                            print("image_file: ", image_file, " Batch Index:  {batch_idx + 1}/{len(dataloaders[dataloader_key])}")
-                            print(f"Images Shape: {images.shape}")
+                            print(f"image_file: , {image_file}", f" Batch Index:  {batch_idx + 1}/{len(dataloaders[dataloader_key])}")
+                            #print(f"Images Shape: {images.shape}")
                             print(f"Ground Truth Categories: {categories[ground_truth_categories.item()]}")
                             print(f"Ground Truth Times: {times[ground_truth_times.item()]}")
                             print(f"Ground Truth Weathers: {weathers[ground_truth_weathers.item()]}")
